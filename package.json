@@ -1,0 +1,30 @@
+{
+  "author": {
+    "name": "Eyvazoff"
+  },
+  "bin": {
+    "bpa-custom-builder": "bin/run.js"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "command-line-args": "^5.1.1",
+    "fs-extra": "^7.0.0",
+    "glob": "^7.1.2",
+    "html-loader": "^0.5.5",
+    "html-minifier": "^4.0.0",
+    "loader-utils": "^1.1.0",
+    "node-watch": "^0.6.2",
+    "shelljs": "^0.8.3"
+  },
+  "deprecated": false,
+  "description": "Compile your html into a destination folder with partial includes",
+  "homepage": "https://github.com/eyvazoff/bpa-custom-builder#readme",
+  "license": "MIT",
+  "main": "./bin/compile.js",
+  "name": "bpa-custom-builder",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eyvazoff/bpa-custom-builder.git"
+  },
+  "version": "1.0.0"
+}
