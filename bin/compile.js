@@ -5,18 +5,15 @@ const watch = require("node-watch"),
     glob = require("glob"),
     htmlMinifier = require("html-minifier"),
     regexInclude = /\$\{require\([^)]*\)[^}]*\}/g,
-    regexLanguage = /[$][$][^)]*[$][$]/g,
-    // regexIncludeRel = /\$\{requireRel\([^)]*\)[^}]*\}/g,
-    // regexIncludeFilePath = /\$\{require\((^\))+\)/g,
     regexIncludeFilePath = /\${require\(\'(.*?)\'\)/,
     regexFilesId = /\${filesId\((.*?)\)[^}]*\}/,
     regexPropAttrs = /\b([^\s]+)="[^\"]*"/gi,
     regexPropUsage = /\$\{props.[^}]+\}/g,
+    regexVariable = /^[\$][\$].*[\$][\$]$/g,
     maxNestedDepth = 99;
 
 const config = require(`../../../${process.env.dist}.json`);
-
-// Grab CLI arguments
+const programming_lang = config.programming_lang;
 const options = [
     {name: "watch", alias: "w", type: String, multiple: true},
     {name: "src", alias: "s", type: String, defaultValue: config.source_folder},
@@ -24,19 +21,13 @@ const options = [
     {name: "minify", alias: "m", type: String, multiple: true},
     {name: "quiet", alias: "q", type: String, defaultValue: false}
 ];
+
 const args = commandLineArgs(options);
-
-const randomIdent = () =>
-    "xxxHTMLLINKxxx" + Math.random() + Math.random() + "xxx";
-
-// // e.g. ("./_sub.html", "src/index.html",) => "..../src/./_sub.html"
 const getFilesId = (fileRequest, fileCurrent, files) => {
     let path;
     if (fileRequest.substring(0, 1) == "/") {
-        // Absolute
         path = args.src + fileRequest;
     } else {
-        // Rel
         let dir = fileCurrent.split("/");
         dir.pop();
         dir = dir.join("/");
@@ -48,18 +39,13 @@ const getFilesId = (fileRequest, fileCurrent, files) => {
                 : fileRequest);
     }
 
-    // Resolve any parent selectors, e.g:
-    // src/component/../../_above.html
-    // _above.html
     let split = path.split("/");
     while (split.includes("..")) {
         split.forEach((s, i) => {
             if (s === "..") {
                 if (i == 0) {
-                    console.error(
-                        `\n SORRY: Cannot include a file above the main directory\n`
-                    );
-                    split.splice(i, 1); // erroring it out of the while loop
+                    console.error(`\n SORRY: Cannot include a file above the main directory\n`);
+                    split.splice(i, 1);
                 }
                 split.splice(i - 1, 2);
             }
@@ -72,18 +58,6 @@ const getFilesId = (fileRequest, fileCurrent, files) => {
 };
 
 const compile = (args) => {
-    /*let css_content = fs.readFileSync('./src/assets/css/variables.css', {encoding: 'utf-8'});
-    const css_variables = config.css_variables;
-    let promises = Object.keys(css_variables).map((key) => {
-      css_content = css_content.replace(key, css_variables[key]);
-    });
-    Promise.all(promises).then((results) => {
-      fse.outputFile(`./${process.env.dist}/assets/css/variables.css`, css_content, (err) => {
-        if (err) {
-          return console.log(err);
-        }
-      });
-    });*/
     glob(args.src + "/**/*.html", {}, (err, files) => {
         if (err) {
             console.log(err);
@@ -95,9 +69,8 @@ const compile = (args) => {
         });
         let noMoreJobs = false, loopCount = 0;
         while (!noMoreJobs && loopCount < maxNestedDepth) {
-            noMoreJobs = true; // hopeful
+            noMoreJobs = true;
             files = files.map((file) => {
-
                 file.content = file.content.replace(/PARTNER_COUNT/g, process.env.partner_count);
                 if (file.content.match(regexInclude)) {
                     noMoreJobs = false;
@@ -106,9 +79,7 @@ const compile = (args) => {
                             filesId = getFilesId(requirePath, file.path, files);
                         let propsAttrs = require.match(regexPropAttrs);
                         if (filesId === null) {
-                            console.error(
-                                `\n FILE MISSING: ${requirePath} (requested by ${file.path})\n`
-                            );
+                            console.error(`\n FILE MISSING: ${requirePath} (requested by ${file.path})\n`);
                         }
                         let hfor = false;
                         let hfor_count = 0;
@@ -220,12 +191,21 @@ const compile = (args) => {
                 }
                 file.content = file.content.replace(/###/g, process.env.content_type);
                 file.content = minimizeOptions ? htmlMinifier.minify(file.content, minimizeOptions) : file.content;
+
                 let multi_page = filename.split("___");
                 if (multi_page && multi_page.length > 0 && multi_page.length === 3) {
                     let page_numbers = multi_page[1].split(",");
                     await Promise.all(
                         page_numbers.map(async (key, index) => {
                             file.content = await file.content.replace(/@@@/g, index + 1);
+
+
+                            let variables = await file.content.match(regexVariable);
+                            if (variables && variables.length > 0) {
+                                console.log(variables);
+                                //file.content = await file.content.replace(regexVariable, "<?php lang('hello') ?>");
+                            }
+
                             let content_only_body = await file.content.split("<!--body-mark-->");
                             await fse.outputFile(`${args.dest}/nr${key}_${multi_page[2]}`, file.content, (err) => {
                                 if (err) {
@@ -244,6 +224,14 @@ const compile = (args) => {
                         })
                     )
                 } else {
+
+                    let variables = await file.content.match(regexVariable);
+                    if (variables && variables.length > 0) {
+                        console.log(variables);
+                        //file.content = await file.content.replace(regexVariable, "<?php lang('hello') ?>");
+                    }
+
+
                     fse.outputFile(outputFilePath, file.content, err => console.log(err));
                     let content_only_body = file.content.split("<!--body-mark-->");
                     fse.outputFile(`${args.dest}/deploy/${filename}`, content_only_body[1], err => console.log(err));
