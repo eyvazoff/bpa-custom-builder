@@ -14,7 +14,7 @@ const watch = require("node-watch"),
     regexPropUsage = /\$\{props.[^}]+\}/g,
     maxNestedDepth = 99;
 
-const config = require(`../../${process.env.dist}.json`);
+const config = require(`../../../${process.env.dist}.json`);
 
 // Grab CLI arguments
 const options = [
@@ -257,7 +257,7 @@ const compile = (args) => {
                 }
             }
         });
-        fse.outputFile(`${args.dest}/111_deploy.json`, JSON.stringify(json), err => console.log('JSON yaradilmasinda "problem" yashanib'));
+        fse.outputFile(`${args.dest}/pages.json`, JSON.stringify(json), err => console.log('Something went wrong for '));
     });
 };
 
