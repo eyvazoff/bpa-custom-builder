@@ -9,7 +9,7 @@ const watch = require("node-watch"),
     regexFilesId = /\${filesId\((.*?)\)[^}]*\}/,
     regexPropAttrs = /\b([^\s]+)="[^\"]*"/gi,
     regexPropUsage = /\$\{props.[^}]+\}/g,
-    regexVariable = /^[\$][\$].*[\$][\$]$/g,
+    regexVariable = /[\$][\$].*[\$][\$]/gm,
     maxNestedDepth = 99;
 
 const config = require(`../../../${process.env.dist}.json`);
@@ -198,14 +198,22 @@ const compile = (args) => {
                     await Promise.all(
                         page_numbers.map(async (key, index) => {
                             file.content = await file.content.replace(/@@@/g, index + 1);
-
-
                             let variables = await file.content.match(regexVariable);
                             if (variables && variables.length > 0) {
-                                console.log(variables);
-                                //file.content = await file.content.replace(regexVariable, "<?php lang('hello') ?>");
+                                for (let variable of variables) {
+                                    const pushedVariable = await variable.replace(/[\$]/g, "");
+                                    switch (programming_lang) {
+                                        case 'php':
+                                            file.content = await file.content.replace(variable, `<?=lang('${pushedVariable}')?>`);
+                                            break;
+                                        case 'nodejs':
+                                            file.content = await file.content.replace(variable, `$t('${pushedVariable}')`);
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                }
                             }
-
                             let content_only_body = await file.content.split("<!--body-mark-->");
                             await fse.outputFile(`${args.dest}/nr${key}_${multi_page[2]}`, file.content, (err) => {
                                 if (err) {
@@ -227,15 +235,26 @@ const compile = (args) => {
 
                     let variables = await file.content.match(regexVariable);
                     if (variables && variables.length > 0) {
-                        console.log(variables);
-                        //file.content = await file.content.replace(regexVariable, "<?php lang('hello') ?>");
+                        for (let variable of variables) {
+                            const pushedVariable = await variable.replace(/[\$]/g, "");
+                            switch (programming_lang) {
+                                case 'php':
+                                    file.content = await file.content.replace(variable, `<?=lang('${pushedVariable}')?>`);
+                                    break;
+                                case 'nodejs':
+                                    file.content = await file.content.replace(variable, `$t('${pushedVariable}')`);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
                     }
 
 
-                    fse.outputFile(outputFilePath, file.content, err => console.log(err));
-                    let content_only_body = file.content.split("<!--body-mark-->");
-                    fse.outputFile(`${args.dest}/deploy/${filename}`, content_only_body[1], err => console.log(err));
-                    json.push({
+                    await fse.outputFile(outputFilePath, file.content, err => console.log(err));
+                    let content_only_body = await file.content.split("<!--body-mark-->");
+                    await fse.outputFile(`${args.dest}/deploy/${filename}`, content_only_body[1], err => console.log(err));
+                    await json.push({
                         pageNr: parseInt(filename.split("_")[0].replace("/nr", "")),
                         pagePart: 0,
                         status: 1,
@@ -250,17 +269,13 @@ const compile = (args) => {
 };
 
 
-// Run on init
 compile(args);
-
-// Watch for changes with flag of --watch
 if (typeof args.watch != "undefined") {
     if (args.watch == null || !args.watch.length) args.watch = args.src;
     watch(
         args.watch,
         {
             recursive: true,
-            // filter: /\.html$/
         },
         function (evnt, file) {
             if (evnt === "update") {
