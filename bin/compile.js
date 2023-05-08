@@ -12,12 +12,11 @@ const watch = require("node-watch"),
     regexVariable = /[\$][\$].*[\$][\$]/gm,
     maxNestedDepth = 99;
 
-const config = require(`../../../${process.env.dist}.json`);
-const programming_lang = config.programming_lang;
+const config = require(`/app.json`);
 const options = [
     {name: "watch", alias: "w", type: String, multiple: true},
-    {name: "src", alias: "s", type: String, defaultValue: `sites/${config.source_folder}`},
-    {name: "dest", alias: "d", type: String, defaultValue: process.env.dist},
+    {name: "src", alias: "s", type: String, defaultValue: `sites/${config.sourceFolder}`},
+    {name: "dest", alias: "d", type: String, defaultValue: 'app'},
     {name: "minify", alias: "m", type: String, multiple: true},
     {name: "quiet", alias: "q", type: String, defaultValue: false}
 ];
@@ -58,7 +57,7 @@ const getFilesId = (fileRequest, fileCurrent, files) => {
 };
 
 const compile = (args) => {
-    glob(args.src + "/**/*.html", {}, (err, files) => {
+    glob(args.src + "/**/*.html", {}, async (err, files) => {
         if (err) {
             console.log(err);
             return;
@@ -71,7 +70,7 @@ const compile = (args) => {
         while (!noMoreJobs && loopCount < maxNestedDepth) {
             noMoreJobs = true;
             files = files.map((file) => {
-                file.content = file.content.replace(/PARTNER_COUNT/g, process.env.partner_count);
+                file.content = file.content.replace(/PARTNER_COUNT/g, config.partnerCount);
                 if (file.content.match(regexInclude)) {
                     noMoreJobs = false;
                     file.content = file.content.replace(regexInclude, (require) => {
@@ -180,7 +179,7 @@ const compile = (args) => {
             }
         }
         let json = [];
-        files.forEach(async (file) => {
+        for (let file of files) {
             let filename = file.path.split("/");
             filename = filename[filename.length - 1];
             if (filename.substring(0, 1) !== "_") {
@@ -189,7 +188,7 @@ const compile = (args) => {
                 if (args.quiet === false) {
                     console.log("Saving: " + file.path + "-> " + outputFilePath);
                 }
-                file.content = file.content.replace(/###/g, process.env.content_type);
+                file.content = file.content.replace(/###/g, config.contentType);
                 file.content = minimizeOptions ? htmlMinifier.minify(file.content, minimizeOptions) : file.content;
 
                 let multi_page = filename.split("___");
@@ -198,72 +197,34 @@ const compile = (args) => {
                     await Promise.all(
                         page_numbers.map(async (key, index) => {
                             file.content = await file.content.replace(/@@@/g, index + 1);
-                            let variables = await file.content.match(regexVariable);
-                            if (variables && variables.length > 0) {
-                                for (let variable of variables) {
-                                    const pushedVariable = await variable.replace(/[\$]/g, "");
-                                    switch (programming_lang) {
-                                        case 'php':
-                                            file.content = await file.content.replace(variable, `<?=lang('${pushedVariable}')?>`);
-                                            break;
-                                        case 'nodejs':
-                                            file.content = await file.content.replace(variable, `$t('${pushedVariable}')`);
-                                            break;
-                                        default:
-                                            break;
-                                    }
-                                }
-                            }
                             let content_only_body = await file.content.split("<!--body-mark-->");
-                            await fse.outputFile(`${args.dest}/nr${key}_${multi_page[2]}`, file.content, (err) => {
-                                if (err) {
-                                    return console.log(err);
-                                } else {
-                                    json.push({
-                                        pageNr: key,
-                                        pagePart: 0,
-                                        status: 1,
-                                        contentType: parseInt(process.env.content_type),
-                                        value: content_only_body[1]
-                                    })
-                                    fse.outputFile(`${args.dest}/deploy/nr${key}_${multi_page[2]}`, content_only_body[1], err => console.log(err));
-                                }
-                            });
+                            await fse.outputFile(`${args.dest}/nr${key}_${multi_page[2]}`, file.content, err => err ? console.error("Multi Page:" + err) : null);
+                            await fse.outputFile(`${args.dest}/deploy/nr${key}_${multi_page[2]}`, content_only_body[1], err => err ? console.error("Multi Page Deploy:" + err) : null)
+                            json.push({
+                                pageNr: key,
+                                pagePart: 0,
+                                status: 1,
+                                contentType: parseInt(config.contentType),
+                                value: content_only_body[1].toString()
+                            })
                         })
                     )
                 } else {
-                    let variables = await file.content.match(regexVariable);
-                    if (variables && variables.length > 0) {
-                        for (let variable of variables) {
-                            const pushedVariable = await variable.replace(/[\$]/g, "");
-                            switch (programming_lang) {
-                                case 'php':
-                                    file.content = await file.content.replace(variable, `<?=lang('${pushedVariable}')?>`);
-                                    break;
-                                case 'nodejs':
-                                    file.content = await file.content.replace(variable, `$t('${pushedVariable}')`);
-                                    break;
-                                default:
-                                    break;
-                            }
-                        }
-                    }
-
-
-                    await fse.outputFile(outputFilePath, file.content, err => console.log(err));
                     let content_only_body = await file.content.split("<!--body-mark-->");
-                    await fse.outputFile(`${args.dest}/deploy/${filename}`, content_only_body[1], err => console.log(err));
+                    await fse.outputFile(outputFilePath, file.contentc, err => err ? console.error("Single Page:" + err) : null);
+                    await fse.outputFile(`${args.dest}/deploy/${filename}`, content_only_body[1], err => err ? console.error("Single Page Deploy:" + err) : null);
                     json.push({
                         pageNr: parseInt(filename.split("_")[0].replace("/nr", "")),
                         pagePart: 0,
                         status: 1,
-                        contentType: parseInt(process.env.content_type),
-                        value: content_only_body[1]
+                        contentType: parseInt(config.contentType),
+                        value: content_only_body[1].toString()
                     })
                 }
             }
-        });
-        fse.outputFile(`${args.dest}/pages.json`, JSON.stringify(json), err => console.log('Something went wrong for '));
+        }
+
+        await fse.outputFile(`${args.dest}/pages.json`, JSON.stringify(json), err => err ? console.error("JSON Saving:" + err) : null);
     });
 };
 
