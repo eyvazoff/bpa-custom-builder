@@ -205,24 +205,41 @@ const compile = (args) => {
                                 pagePart: 0,
                                 status: 1,
                                 contentType: parseInt(config.contentType),
-                                value: content_only_body[1].toString()
+                                value: content_only_body[1].toString(),
+                                filename: `nr${key}_${multi_page[2]}`
                             })
                         })
                     )
                 } else {
                     let content_only_body = await file.content.split("<!--body-mark-->");
-                    await fse.outputFile(outputFilePath, file.contentc, err => err ? console.error("Single Page:" + err) : null);
+                    await fse.outputFile(outputFilePath, file.content, err => err ? console.error("Single Page:" + err) : null);
                     await fse.outputFile(`${args.dest}/deploy/${filename}`, content_only_body[1], err => err ? console.error("Single Page Deploy:" + err) : null);
                     json.push({
                         pageNr: parseInt(filename.split("_")[0].replace("/nr", "")),
                         pagePart: 0,
                         status: 1,
                         contentType: parseInt(config.contentType),
-                        value: content_only_body[1].toString()
+                        value: content_only_body[1].toString(),
+                        filename
                     })
                 }
             }
         }
+
+
+        let index_html = `<style>table { border: 1px solid #ccc; border-collapse: collapse; margin: 0; padding: 0; width: 100%; table-layout: fixed; } table caption { font-size: 1.5em; margin: .5em 0 .75em; } table tr { background-color: #f8f8f8; border: 1px solid #ddd; padding: .35em; } table th, table td { padding: .625em; text-align: center; } table th { font-size: .85em; letter-spacing: .1em; text-transform: uppercase; } @media screen and (max-width: 600px) { table { border: 0; } table caption { font-size: 1.3em; } table thead { border: none; clip: rect(0 0 0 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; } table tr { border-bottom: 3px solid #ddd; display: block; margin-bottom: .625em; } table td { border-bottom: 1px solid #ddd; display: block; font-size: .8em; text-align: right; } table td::before { /* * aria-label has no advantage, it won't be read inside a table content: attr(aria-label); */ content: attr(data-label); float: left; font-weight: bold; text-transform: uppercase; } table td:last-child { border-bottom: 0; } }</style>`
+        index_html += '<table><thead><tr><th>NR</th><th>Page Name</th></tr></thead><tbody>';
+        for (let f of json) {
+            let name = f.filename.split("_");
+            name = name[1].replace(".html", "");
+            index_html += '<tr>';
+            index_html += `<td>${f.pageNr}</td>`
+            index_html += `<td><a href="${f.filename}" style="color: blue !important;text-decoration: none;">${name}</a></td>`
+            index_html += '</tr>';
+        }
+        index_html += '</tbody></table>';
+
+        await fse.outputFile(`${args.dest}/index.html`, index_html, err => err ? console.error("Index File:" + err) : null);
 
         await fse.outputFile(`${args.dest}/pages.json`, JSON.stringify(json), err => err ? console.error("JSON Saving:" + err) : null);
     });
