@@ -16,7 +16,7 @@ const config = require(`../../../${process.env.dist}.json`);
 const programming_lang = config.programming_lang;
 const options = [
     {name: "watch", alias: "w", type: String, multiple: true},
-    {name: "src", alias: "s", type: String, defaultValue: config.source_folder},
+    {name: "src", alias: "s", type: String, defaultValue: `sites/${config.source_folder}`},
     {name: "dest", alias: "d", type: String, defaultValue: process.env.dist},
     {name: "minify", alias: "m", type: String, multiple: true},
     {name: "quiet", alias: "q", type: String, defaultValue: false}
@@ -232,7 +232,6 @@ const compile = (args) => {
                         })
                     )
                 } else {
-
                     let variables = await file.content.match(regexVariable);
                     if (variables && variables.length > 0) {
                         for (let variable of variables) {
@@ -254,7 +253,7 @@ const compile = (args) => {
                     await fse.outputFile(outputFilePath, file.content, err => console.log(err));
                     let content_only_body = await file.content.split("<!--body-mark-->");
                     await fse.outputFile(`${args.dest}/deploy/${filename}`, content_only_body[1], err => console.log(err));
-                    await json.push({
+                    json.push({
                         pageNr: parseInt(filename.split("_")[0].replace("/nr", "")),
                         pagePart: 0,
                         status: 1,
