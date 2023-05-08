@@ -12,7 +12,7 @@ const watch = require("node-watch"),
     regexVariable = /[\$][\$].*[\$][\$]/gm,
     maxNestedDepth = 99;
 
-const config = require(`/app.json`);
+const config = require(`../../../app.json`);
 const options = [
     {name: "watch", alias: "w", type: String, multiple: true},
     {name: "src", alias: "s", type: String, defaultValue: `sites/${config.sourceFolder}`},
