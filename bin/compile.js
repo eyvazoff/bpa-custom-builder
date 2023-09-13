@@ -219,7 +219,7 @@ const compile = (args) => {
                     await fse.outputFile(outputFilePath, file.content, err => err ? console.error("Single Page:" + err) : null);
                     let pageName = filename;
                     if (config.withoutPageName) {
-                        pageName = filename.split("_")[0]
+                        pageName = filename.split("_")[0] + '.html'
                     }
                     await fse.outputFile(`${args.dest}/deploy/${pageName}`, content_only_body[1], err => err ? console.error("Single Page Deploy:" + err) : null);
                     json.push({
