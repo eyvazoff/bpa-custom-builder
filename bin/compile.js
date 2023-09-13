@@ -198,8 +198,12 @@ const compile = (args) => {
                         page_numbers.map(async (key, index) => {
                             file.content = await file.content.replace(/@@@/g, index + 1);
                             let content_only_body = await file.content.split("<!--body-mark-->");
-                            await fse.outputFile(`${args.dest}/nr${key}_${multi_page[2]}`, file.content, err => err ? console.error("Multi Page:" + err) : null);
-                            await fse.outputFile(`${args.dest}/deploy/nr${key}_${multi_page[2]}`, content_only_body[1], err => err ? console.error("Multi Page Deploy:" + err) : null)
+                            let pageName = `nr${key}_${multi_page[2]}`;
+                            if (config.withoutPageName) {
+                                pageName = `nr${key}`
+                            }
+                            await fse.outputFile(`${args.dest}/${pageName}`, file.content, err => err ? console.error("Multi Page:" + err) : null);
+                            await fse.outputFile(`${args.dest}/deploy/${pageName}`, content_only_body[1], err => err ? console.error("Multi Page Deploy:" + err) : null)
                             json.push({
                                 pageNr: key,
                                 pagePart: 0,
@@ -213,7 +217,11 @@ const compile = (args) => {
                 } else {
                     let content_only_body = await file.content.split("<!--body-mark-->");
                     await fse.outputFile(outputFilePath, file.content, err => err ? console.error("Single Page:" + err) : null);
-                    await fse.outputFile(`${args.dest}/deploy/${filename}`, content_only_body[1], err => err ? console.error("Single Page Deploy:" + err) : null);
+                    let pageName = filename;
+                    if (config.withoutPageName) {
+                        pageName = filename.split("_")[0]
+                    }
+                    await fse.outputFile(`${args.dest}/deploy/${pageName}`, content_only_body[1], err => err ? console.error("Single Page Deploy:" + err) : null);
                     json.push({
                         pageNr: parseInt(filename.split("_")[0].replace("/nr", "")),
                         pagePart: 0,
